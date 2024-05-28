@@ -19,13 +19,12 @@ create-s2orc-dark-data-collection:
 cluster-data:
 	python $(SRC_DIR)/process/cluster_data.py -i $(DATA_DIR_JNS) -o $(DATA_DIR_PROCESSED)
 
-assign-data-2-lab-round-1:
-	python $(SRC_DIR)/annotations/assign_data_2_ab.py -i $(DATA_DIR_PROCESSED) -o $(DATA_DIR_ANNOTS)
+assign-data-round-1:
+	python $(SRC_DIR)/annotations/2023-03-07-assign-data.py -i $(DATA_DIR_PROCESSED) -o $(DATA_DIR_ANNOTS)
 	
-assign-data-2-lab-round-2:
-	python $(SRC_DIR)/import/new_data_to_lab.py -i $(processed) -o $(DATA_DIR_ANNOTS)
+assign-data-round-2:
+	python $(SRC_DIR)/import/2023-09-21-assign-data.py -i $(processed) -o $(DATA_DIR_ANNOTS)
 
-# We train-test split the data, somewhere. 
-# I don't remember where...
+# We train-test split the data, somewhere. I don't remember where...
 create-train-test:
 	python $(SRC_DIR)/ksplit/train_test.py -i $(DATA_DIR_ANNOTS) -o $(DATA_DIR_KSPLIT)
