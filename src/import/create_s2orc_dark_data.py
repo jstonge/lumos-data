@@ -95,9 +95,6 @@ def add_journals_via_issnl(db, metadata_venue, df_google):
 def main():
     args = parse_args()
     INPUT_DIR = args.input
-    OUTPUT_DIR = args.output
-
-    from pymongo import MongoClient
 
     pw = "password"
     uri = f"mongodb://cwward:{pw}@wranglerdb01a.uvm.edu:27017/?authSource=admin&readPreference=primary&appname=MongoDB%20Compass&directConnection=true&ssl=false"
@@ -125,15 +122,18 @@ def main():
 
     # We are using display name instead of issn because few journals/conferene do not seem to have
     # issn. At this point, display name should work fine though.
+
     tot_venue_set = set(metadata_venue.display_name)
     
+    # We clean text a little by tokenizing it with spacy.
     nlp = spacy.load("en_core_web_trf", enable=["tok2vec"])
 
     i = 0 
     for venue in tot_venue_set:
-        # venue = 'Applied Linguistics'
-        # venue = list(tot_venue_set)[0]        
+        # venue = 'Applied Linguistics'   
         print(f"doing {venue} (done {i}/{len(tot_venue_set)})")
+        
+        # for each venue, find all corpus ids of parsed papers
         venue_df = pd.DataFrame(list(db.papers.aggregate([
             { "$match": { 
                 'works_oa.host_venue.display_name': venue, 
@@ -148,13 +148,12 @@ def main():
 
             # If we want only sections containing an occurence of `data`, first grab al the texts 
             text_subset = []
-            # all_texts = {}
-
             for cid in tqdm(corpusIds_we_want):
-                # cid = corpusIds_we_want[0]
-                # text_subset.append(db.s2orc.find_one({'corpusid': cid}))
                 text = db.s2orc.find_one({'corpusid': cid})
-
+                
+                # paragraphs are delimited using character locations.
+                # we need to find the locations, then extract the text.
+                # we also keep track of the section headers of the text.
                 if text is not None and text['content']['annotations']['paragraph'] is not None:
                     current_text = text['content']['text']
                     section_headers_raw = text['content']['annotations']['sectionheader']
@@ -176,7 +175,6 @@ def main():
                         if section_headers_raw:
                             for start_section, section_name in header_lookup.items():
                                 if start_par < start_section:
-                                    # print(prev_section)
                                     new_text.append(current_text[start_par:end_par])
                                     par_ids.append(j)
                                     break

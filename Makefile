@@ -6,11 +6,13 @@ DATA_DIR_KSPLIT=$(DATA_DIR)/DATA_DIR_KSPLIT # trainin data
 
 SRC_DIR=./src
 
-# Scrape google scholar to control for different fields
+# Scrape google scholar to control for different field of studies
 import-gscholar-jns:
 	python $(SRC_DIR)/import/scrape_gscholar.py -o $(DATA_DIR_JNS)
 
-# We use mongoDB text methods to assign the data to the lab
+# We create a collection in mongoDB where each document is 
+# a section containing a mention of data. The sections come from
+# papers from selected journals that were in the s2orc database.
 create-s2orc-dark-data-collection:
 	python $(SRC_DIR)/import/create_s2orc_dark_data_collection.py -i $(DATA_DIR_JNS) 
 

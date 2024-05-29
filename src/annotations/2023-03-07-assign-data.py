@@ -189,6 +189,9 @@ def main():
     # OUTPUT_DIR = Path("../../data/annots/")
     OUTPUT_DIR = args.output
     
+    # I don't know where clusteredDataStatements.csv comes from, but
+    # it must be derived from the `s2orc_dark_data` collection in the mongoDB.
+    # This collection was created by `import/create_s2orc_dark_data.py`.
     d = pd.read_csv(INPUT_DIR / "clusteredDataStatements.csv")
     
     MIN_WC, MAX_WC = 5, 400
