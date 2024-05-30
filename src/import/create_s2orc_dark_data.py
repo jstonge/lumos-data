@@ -134,6 +134,7 @@ def main():
         print(f"doing {venue} (done {i}/{len(tot_venue_set)})")
         
         # for each venue, find all corpus ids of parsed papers
+        # this step is more tricky than one would hope.
         venue_df = pd.DataFrame(list(db.papers.aggregate([
             { "$match": { 
                 'works_oa.host_venue.display_name': venue, 
