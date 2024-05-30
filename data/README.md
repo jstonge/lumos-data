@@ -17,3 +17,4 @@ And the related [folder](https://docs.google.com/spreadsheets/d/1PHTeYJJMRp-DpEC
 
 - `2024/05/29` (JSO): I rewrote the project from scratch, using relevant scripts from `dark-dark/`. I hope the project is better organized now; we have a Makefile that keeps track of the data workflow. In the process, i realized we are missing a script that produce `clusteredDataStatements.csv`.
 - `2024/05/30`(JSO) : uploaded the old annotations from our excel sheet as if they were made on label studio. That way, we can more easily see inter-annotator agreement. See `src/annotations/upload_old_annots_to_LS.py`. 
+- `2024/05/30` (JSO): wrote a class in `src/label_studio.py` to facilitate our interactions with label studio. All the data in `data/annots` should be superseded by this new pipeline at some point.
