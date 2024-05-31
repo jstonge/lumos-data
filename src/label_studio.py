@@ -49,6 +49,7 @@ class labelStudio:
         base_url = "https://app.heartex.com/api/projects"
         
         url = f"{base_url}/{self.proj_id}/export?exportType=JSON&download_all_tasks=true"
+        print("requesting the annots...")
         response = requests.get(url, headers=headers)
 
         if response.status_code == 200:
@@ -63,7 +64,7 @@ class labelStudio:
             print(f"Failed to fetch data: {response.status_code}")
 
     def post_LS(self, data: List) -> None:
-        """similar to update?"""
+        """Import data to label studio"""
         response = requests.post(f'https://app.heartex.com/api/projects/{self.proj_id}/import', 
                                 headers={'Content-Type': 'application/json', 'Authorization': f"Token {self.LS_TOK}"}, 
                                 data=json.dumps(data), verify=False)

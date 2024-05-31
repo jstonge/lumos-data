@@ -1,1 +1,4 @@
 src/annotations/__pycache__/label_studio.cpython-39.pyc
+create_s2orc_dark_data.sh
+extract_sample_mongodb.sh
+src/__pycache__/

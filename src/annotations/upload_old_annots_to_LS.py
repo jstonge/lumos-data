@@ -8,7 +8,7 @@ import pandas as pd
 import json
 import numpy as np
 
-from label_studio import labelStudio
+from ..label_studio import labelStudio
 
 # Read annotator data
 
