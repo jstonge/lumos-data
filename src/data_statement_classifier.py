@@ -13,7 +13,7 @@ from inspect import cleandoc
 #####################
 
 # some training data, not sure how it has been generated
-data = pd.read_parquet("data/annotated_data.parquet")
+data = pd.read_parquet("../data/annots/annotated_data.parquet")
 data["wc"] = data.text.str.split(" ").map(len)
 data = data[data.wc <= 600]
 data = data[data.sentiment != "maybe"]
