@@ -16,3 +16,4 @@ finetuning-torchtune/lora_experiment_1/
 finetuning-torchtune/my_experiment/
 finetuning-litgpt/
 data/annots/data-statements-2024-05-31/test/dataset_info.json
+src/cache/

@@ -6,7 +6,16 @@ from typing import List, Any, Union, Dict, ClassVar, Set
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from collections import Counter
+from inspect import cleandoc
+from transformers import GenerationConfig, TextStreamer, pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+try:
+    import torch
+    is_cuda = torch.cuda.is_available()
+except:
+    is_cuda = False
+
 
 chosen_journals = set(['Journal of Business Research','Technological Forecasting and Social Change',
                       'Journal of Business Ethics','Advanced Materials', 'Angewandte Chemie', 
@@ -19,20 +28,28 @@ chosen_journals = set(['Journal of Business Research','Technological Forecasting
                       'The astrophysical journal',  'Light-Science & Applications',  'Journal of High Energy Physics', 
                       'Nature Human Behaviour', 'Social Science & Medicine', 'Cities'])
 
-def get_consensus_annotations(x):
-    def get_majority_choice(x):
-        votes = [_['result'][0]['value']['choices'][0] for _ in x['annotations']]
-        counter = Counter(votes)
-        return counter.most_common(1)[0][0]
-     
-    majority_vote = get_majority_choice(x)
-    for annot_obj in x['annotations']:
-        choice = annot_obj['result'][0]['value']['choices'][0]
-        if choice == majority_vote:
-            return x
-
 class labelStudio:
-    
+    model = None
+    tokenizer = None
+
+    @classmethod
+    def load_llama3(cls):
+        if cls.model is None and cls.tokenizer is None and is_cuda:
+            try:                
+                cls.model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+
+                cls.tokenizer = AutoTokenizer.from_pretrained(cls.model_id)
+
+                cls.model = AutoModelForCausalLM.from_pretrained(
+                    cls.model_id,
+                    torch_dtype=torch.float16,
+                    device_map = 'auto'
+                )
+            except ImportError:
+                cls.model = None
+                cls.tokenizer = None
+                raise ImportError("model and tokenizer not available") 
+
     def __init__(self, client: MongoClient = None):
         if client is None:
             uri="mongodb://cwward:password@wranglerdb01a.uvm.edu:27017/?authSource=admin&readPreference=primary&appname=MongoDB%20Compass&directConnection=true&ssl=false"
@@ -41,6 +58,7 @@ class labelStudio:
         self.LS_TOK = os.getenv('LS_TOK')
         self.db = client['papersDB']
         self.cache = Path("./cache")
+        self.is_cuda = is_cuda
         self.annotators = {'juniper.lovato@uvm.edu': 19456, 'achawla1@uvm.edu': 17284, 'CW': 23575, 'JZ': 23576, 'jonathan.st-onge@uvm.edu': 16904}
         # self.active_annotators = {'juniper.lovato@uvm.edu':19456, 'achawla1@uvm.edu': 17284, 'jonathan.st-onge@uvm.edu': 16904}
         self.active_annotators = {'jonathan.st-onge@uvm.edu': 16904}
@@ -63,9 +81,8 @@ class labelStudio:
             self.code_proj_id = code_proj_status
 
     # LABEL STUDIO HELPERS
-               
 
-    def get_annotations(self, proj_id, only_annots=True, only_consensus=True):
+    def get_annotations_LS(self, proj_id, only_annots=True):
         """Get annotations of a given project id."""
         headers = { "Authorization": f"Token {self.LS_TOK}" }
         base_url = "https://app.heartex.com/api/projects"
@@ -78,19 +95,7 @@ class labelStudio:
             json_data = json.loads(response.text)
             
             if only_annots:
-                if only_consensus:
-                    
-                
-                    out = []
-                    for multi_annot_obj in json_data:
-                        if len(multi_annot_obj['annotations']) == 1:
-                            out.append(multi_annot_obj)
-                        else:
-                            out.append(get_consensus_annotations(multi_annot_obj))
-                    return out
-                else:
-                    return [_ for _ in json_data if len(_['annotations']) > 0]
-
+                return [_ for _ in json_data if len(_['annotations']) > 0]
             else:
                 return json_data
             
@@ -172,6 +177,64 @@ class labelStudio:
             print("project created")
             return json.loads(response.text)['id']
 
+    def run_llama3(self, annots: List[str], config: GenerationConfig = None, proj_id:int = 70656) -> List[Union[str, int]]:
+        """run llama3 using few shot learning on the annotations for a given project""" 
+        self.load_llama3()
+        if self.model is not None and self.tokenizer is not None:
+            # set the configs
+            if config is None:
+                generation_config = GenerationConfig.from_pretrained(self.model_id)
+                generation_config.max_new_tokens = 512
+                generation_config.temperature = 0.0001
+                generation_config.do_sample = True
+
+            streamer = TextStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+            stop_token_ids = [self.tokenizer.eos_token_id, self.tokenizer.convert_tokens_to_ids("<|eot_id|>")]
+
+            llm = pipeline(
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                return_full_text=False,
+                generation_config=generation_config,
+                num_return_sequences=1,
+                eos_token_id=stop_token_ids,
+                streamer=streamer,
+            )
+
+            if proj_id == 70656:
+                ex1 = """We thank A. Sachraida, C. Gould and P. J. Kelly for providing us with the experimental data and helpful comments, and S. Tomsovic for a critical discussion."""
+                ex2 = """River discharge data for the Tully River were obtained from the Queensland Bureau of Meteorology (http://www.bom.gov. au). No long-term in situ salinity data are available from King Reef; therefore, data from the Carton-Giese Simple Ocean Data Assimilation (SODA) reanalysis project were chosen as a longterm monthly resolution SSS dataset. This consists of a combination of observed and modeled data (Carton et al., 2000). Data were obtained from the box centered on 17.5°S (17.25°-17.75°) and 146°E (145.75°-146.25°). SODA version 1.4.2 extends from 1958 to 2001 and uses surface wind products from the European Center for Medium-Range Weather Forecasts 40-year reanalysis (ECMWF ERA 40), which may contain inaccuracies in tropical regions (Cahyarini et al., 2008). The most recent version of SODA (1.4.3) now uses wind data from the Quick-Scat scatterometer, thus providing more accurate data for the tropics (Cahyarini et al., 2008;Carton and Giese, 2008"""
+                ex3 = """The current results should be considered relative to a few study limitations. The CFS data did not specify the nature of proactive activities that patrol, DRT officers, or investigators were engaged in. Furthermore, although the coding of the ten call categories analyzed were informed by prior research (Wu & Lum, 2017), idiosyncrasies associated with the study departments' method of cataloging and recording call information did not always allow for direct comparisons to prior research on COVID-19's impact on police services. Similarly, measuring proactivity solely through self-initiated activities from CFS data is not a flawless indicator. Officers may engage in proactive work that is not captured in these **data** (Lum, Koper, et al., 2020). However, this method has been established as a reasonable way to distinguish proactivity from reactivity (Lum, Koper, et al., 2020;Wu & Lum, 2017;Zhang and Zhao, 2021)."""
+
+                run_llama3 = lambda x : llm([{
+                    "role": "user",
+                    "content": cleandoc(f"""
+                        Text: {ex1}
+                        is_data_availability_statement: yes
+
+                        Text: {ex2}
+                        is_data_availability_statement: yes
+
+                        Text: {ex3}
+                        is_data_availability_statement: no
+
+                        Text: {x}
+                        is_data_availability_statement: ?
+
+                        Give a one word response.
+                        """
+                    )}])
+
+                y_pred = list(map(run_llama3, annots))
+                y_pred = list(map(lambda x: 1 if x[0]['generated_text'].lower() == 'yes' else 0, y_pred))
+            else:
+                print("Not implemented yet")
+                y_pred = None
+        
+            return y_pred
+        else:
+            raise ImportError("llama3 not available")
 
     # MONGODB HELPERS
 
@@ -243,7 +306,7 @@ class labelStudio:
         """
         print("get already doing annotations...")
         
-        done_annots = self.get_annotations(proj_id, only_annots=only_annots)
+        done_annots = self.get_annotations_LS(proj_id, only_annots=only_annots)
         done_corpusids = set([_['data']['corpusid'] for _ in done_annots]) if len(done_annots) > 0 else set()
         
         overshoot_sample = sample_by_field*2 # there must be a better way to do this. Rn we sample way more for DB to make sure we have
@@ -320,12 +383,10 @@ class labelStudio:
 
         annots_to_dispatch = annots_to_dispatch[~annots_to_dispatch.corpusid_unique.isin(next_corpus_id)]
 
-    def preannotate_llama3(self):
-        
 
 
+LS = labelStudio()
 
-# LS = labelStudio()
 # new_annots = LS.more_annotations(72804)
 # for email, annot_id in LS.active_annotators.items():
 #     print(f"dispatching to {email}")
