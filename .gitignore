@@ -2,3 +2,17 @@ src/annotations/__pycache__/label_studio.cpython-39.pyc
 create_s2orc_dark_data.sh
 extract_sample_mongodb.sh
 src/__pycache__/
+
+results/
+llama3-8B-data-statement/
+wandb/
+finetuning-pyreft/
+finetuning-SFT/
+finetuning-torchtune/phi3_mini_experiment_1
+finetuning-torchtune/qlora_experiment/
+finetuning-torchtune/Microsoft-Phi3-mini-4k-instruct/
+finetuning-torchtune/llama-3-8b-data-avail-statement-classifier/
+finetuning-torchtune/lora_experiment_1/
+finetuning-torchtune/my_experiment/
+finetuning-litgpt/
+data/annots/data-statements-2024-05-31/test/dataset_info.json
