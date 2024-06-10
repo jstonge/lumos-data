@@ -6,6 +6,7 @@ from typing import List, Any, Union, Dict, ClassVar, Set
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from collections import Counter
 
 chosen_journals = set(['Journal of Business Research','Technological Forecasting and Social Change',
                       'Journal of Business Ethics','Advanced Materials', 'Angewandte Chemie', 
@@ -17,6 +18,18 @@ chosen_journals = set(['Journal of Business Research','Technological Forecasting
                       'Nucleic Acids Research',  'International Journal of Molecular Sciences', 
                       'The astrophysical journal',  'Light-Science & Applications',  'Journal of High Energy Physics', 
                       'Nature Human Behaviour', 'Social Science & Medicine', 'Cities'])
+
+def get_consensus_annotations(x):
+    def get_majority_choice(x):
+        votes = [_['result'][0]['value']['choices'][0] for _ in x['annotations']]
+        counter = Counter(votes)
+        return counter.most_common(1)[0][0]
+     
+    majority_vote = get_majority_choice(x)
+    for annot_obj in x['annotations']:
+        choice = annot_obj['result'][0]['value']['choices'][0]
+        if choice == majority_vote:
+            return x
 
 class labelStudio:
     
@@ -50,8 +63,9 @@ class labelStudio:
             self.code_proj_id = code_proj_status
 
     # LABEL STUDIO HELPERS
+               
 
-    def get_annotations(self, proj_id, only_annots=True):
+    def get_annotations(self, proj_id, only_annots=True, only_consensus=True):
         """Get annotations of a given project id."""
         headers = { "Authorization": f"Token {self.LS_TOK}" }
         base_url = "https://app.heartex.com/api/projects"
@@ -64,7 +78,19 @@ class labelStudio:
             json_data = json.loads(response.text)
             
             if only_annots:
-                return [_ for _ in json_data if len(_['annotations']) > 0]
+                if only_consensus:
+                    
+                
+                    out = []
+                    for multi_annot_obj in json_data:
+                        if len(multi_annot_obj['annotations']) == 1:
+                            out.append(multi_annot_obj)
+                        else:
+                            out.append(get_consensus_annotations(multi_annot_obj))
+                    return out
+                else:
+                    return [_ for _ in json_data if len(_['annotations']) > 0]
+
             else:
                 return json_data
             
